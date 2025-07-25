@@ -11,6 +11,7 @@ function log(msg) {
  * @param {object} parameters        <- Should include { TESTWORDS: "..." }
  */
 module.exports = async function (driver, parameters = {}) {
+  log(`Parameters received in google-secret-field: ${JSON.stringify(parameters)}`);
   const secret = parameters.TESTWORDS || "";
   if (!secret) {
     log("❌ FAIL: No TESTWORDS secret provided in parameters");
