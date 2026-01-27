@@ -1,0 +1,10 @@
+{
+  "title": "Example to search in Jira",
+  "needed-parameters": [
+    {
+      "name": "whatToSearch",
+      "label": "EPEA",
+      "default": "EPEA"
+    }
+  ]
+}
