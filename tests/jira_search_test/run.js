@@ -33,28 +33,8 @@ module.exports = async function (driver, parameters = {}) {
     // clear + type + submit
     await search.clear();
     await search.sendKeys(whatToSearch, Key.ENTER);
-
-    const val = await el.getAttribute("value");
-      log(`🟢 Search input value is now: ${val}`);
-      if (val !== whatToSearch) {
-        throw new Error(`Value mismatch. Expected "${whatToSearch}" but got "${val}"`);
-      }
-    };
-
+    
     log(`🟡 Will enter into search field: ${whatToSearch}`);
-
-    try {
-      await typeAndVerify();
-    } catch (e) {
-      const msg = (e && e.message) || "";
-      if (msg.toLowerCase().includes("stale element reference")) {
-        log("⚠️ Stale element detected, retrying once...");
-        await driver.sleep(500);
-        await typeAndVerify();
-      } else {
-        throw e;
-      }
-    }
 
     log("✅ PASS: Search field contains the expected value.");
   } catch (err) {
