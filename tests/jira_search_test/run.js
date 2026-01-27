@@ -22,23 +22,19 @@ module.exports = async function (driver, parameters = {}) {
     );
 
     log("🔎 Waiting for search input to exist + be visible...");
-    await driver.wait(until.elementLocated(searchLocator), 20000);
-    await driver.wait(until.elementIsVisible(driver.findElement(searchLocator)), 20000);
 
-    const typeAndVerify = async () => {
-      const containerEl = await driver.findElement(searchContainerLocator);
-      await driver.wait(until.elementIsVisible(containerEl), 10000);
-      await driver.wait(until.elementIsEnabled(containerEl), 10000);
-      await containerEl.click();
+    const search = await driver.wait(
+      until.elementLocated(By.css('[data-testid="search-input"]')),
+      10000
+    );
+    await driver.wait(until.elementIsVisible(search), 10000);
+    await driver.wait(until.elementIsEnabled(search), 10000);
+  
+    // clear + type + submit
+    await search.clear();
+    await search.sendKeys(whatToSearch, Key.ENTER);
 
-      const el = await driver.findElement(searchLocator);
-      await driver.wait(until.elementIsVisible(el), 10000);
-      await driver.wait(until.elementIsEnabled(el), 10000);
-
-      await el.clear();
-      await el.sendKeys(whatToSearch);
-
-      const val = await el.getAttribute("value");
+    const val = await el.getAttribute("value");
       log(`🟢 Search input value is now: ${val}`);
       if (val !== whatToSearch) {
         throw new Error(`Value mismatch. Expected "${whatToSearch}" but got "${val}"`);
