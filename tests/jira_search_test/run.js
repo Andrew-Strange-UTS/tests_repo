@@ -1,63 +1,65 @@
-// https://login.uts.edu.au/home/atlassian/0oa264vuohF3jyekI3l7/aln1aqcs055ZRoizW0g8
-
-// placeholder="Search"
-
-
-
-
 const { By, until } = require("selenium-webdriver");
 
 function log(msg) {
   process.stdout.write(`${msg}\n`);
 }
 
-/**
- * Test: UTS Login Page - Search Field Population
- * @param {WebDriver} driver
- * @param {object} parameters  - { whatToSearch: string }
- */
 module.exports = async function (driver, parameters = {}) {
   const whatToSearch = parameters.whatToSearch || "whatToSearch";
+  const url =
+    "https://login.uts.edu.au/home/atlassian/0oa264vuohF3jyekI3l7/aln1aqcs055ZRoizW0g8";
+
+  // Use a locator (not an element) so we can re-find it any time
+  const searchLocator = By.css('input[data-testid="search-input"]');
 
   try {
-    const url =
-      "https://login.uts.edu.au/home/atlassian/0oa264vuohF3jyekI3l7/aln1aqcs055ZRoizW0g8";
-
     log(`🌏 Navigating to ${url}`);
     await driver.get(url);
 
-    log('🔎 Waiting for search input...');
-    let searchInput;
+    // Wait for page to be ready-ish (helps with SPAs)
+    await driver.wait(
+      async () => (await driver.executeScript("return document.readyState")) === "complete",
+      15000
+    );
+
+    log("🔎 Waiting for search input to exist + be visible...");
+    await driver.wait(until.elementLocated(searchLocator), 20000);
+    await driver.wait(until.elementIsVisible(driver.findElement(searchLocator)), 20000);
+
+    // Helper: type with a stale-element retry
+    const typeAndVerify = async () => {
+      const el = await driver.findElement(searchLocator); // re-find fresh
+      await driver.wait(until.elementIsVisible(el), 10000);
+      await driver.wait(until.elementIsEnabled(el), 10000);
+
+      await el.click();
+      await el.clear();
+      await el.sendKeys(whatToSearch);
+
+      const val = await el.getAttribute("value");
+      log(`🟢 Search input value is now: ${val}`);
+      if (val !== whatToSearch) {
+        throw new Error(`Value mismatch. Expected "${whatToSearch}" but got "${val}"`);
+      }
+    };
+
+    log(`🟡 Will enter into search field: ${whatToSearch}`);
+
     try {
-      searchInput = await driver.wait(
-        until.elementLocated(By.css('input[data-testid="search-input"]')),
-        15000
-      );
-      await driver.wait(until.elementIsVisible(searchInput), 8000);
-      await driver.wait(until.elementIsEnabled(searchInput), 8000);
+      await typeAndVerify();
     } catch (e) {
-      log('❌ FAIL: Search input not found/visible/enabled.');
-      throw new Error("Search input not found/visible/enabled");
+      // Retry once if the DOM re-rendered mid-action
+      const msg = (e && e.message) || "";
+      if (msg.toLowerCase().includes("stale element reference")) {
+        log("⚠️ Stale element detected, retrying once...");
+        await driver.sleep(500);
+        await typeAndVerify();
+      } else {
+        throw e;
+      }
     }
 
-    // Type into the search field
-    await searchInput.click();
-    await searchInput.clear();
-    await searchInput.sendKeys(whatToSearch);
-    log("⌨️ Typed into search input.");
-    await driver.sleep(300);
-
-    // Verify value
-    const val = await searchInput.getAttribute("value");
-    log(`🟢 Search input value is now: ${val}`);
-
-    if (val === whatToSearch) {
-      log("✅ PASS: Search field contains the expected value.");
-    } else {
-      throw new Error(
-        `Search field value mismatch. Expected "${whatToSearch}" but got "${val}"`
-      );
-    }
+    log("✅ PASS: Search field contains the expected value.");
   } catch (err) {
     process.stderr.write(`🔥 Fatal test error: ${err && err.message}\n`);
     throw err;
