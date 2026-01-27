@@ -16,12 +16,6 @@ function log(msg) {
 module.exports = async function (driver, parameters = {}) {
   const whatToSearch = parameters.whatToSearch || "whatToSearch";
 
-  log("🟠 Received parameters:");
-  for (const [key, value] of Object.entries(parameters)) {
-    log(`• ${key}: ${JSON.stringify(value)}`);
-  }
-  log(`🟡 Will enter into search field: ${whatToSearch}`);
-
   try {
     // Step 1: Go to target page
     const url =
@@ -33,14 +27,12 @@ module.exports = async function (driver, parameters = {}) {
     log('🔎 Waiting for search input with placeholder="Search"...');
 
     // Prefer CSS selector for placeholder match
-    let searchInput;
-    try {
-      searchInput = await driver.wait(
-        until.elementLocated(By.css('input[placeholder="Search"]')),
+    const searchInput = await driver.wait(
+        until.elementLocated(By.css('input[data-testid="search-input"]')),
         15000
-      );
-      await driver.wait(until.elementIsVisible(searchInput), 8000);
-      await driver.wait(until.elementIsEnabled(searchInput), 8000);
+    );
+    await driver.wait(until.elementIsVisible(searchInput), 8000);
+
     } catch (e) {
       log('❌ FAIL: Search input (placeholder="Search") not found/visible/enabled.');
       throw new Error('Search input (placeholder="Search") not found/visible/enabled');
