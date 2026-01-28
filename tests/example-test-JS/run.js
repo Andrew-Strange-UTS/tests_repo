@@ -11,11 +11,6 @@ function log(msg) {
  */
 module.exports = async function (driver, parameters = {}) {
   const whatToSay = parameters.whatToSay || "Hi My Name Is Andrew!!";
-  log("🟠 Received parameters:");
-  for (const [key, value] of Object.entries(parameters)) {
-    log(`• ${key}: ${JSON.stringify(value)}`);
-  }
-  log(`🟡 Will enter into textarea: ${whatToSay}`);
 
   try {
     // Step 1: Go to Google Australia
