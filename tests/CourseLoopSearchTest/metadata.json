@@ -1,1 +1,10 @@
-
+{
+  "title": "Example JS test to search something in CourseLoop",
+  "needed-parameters": [
+    {
+      "name": "whatToSearch",
+      "label": "What to search",
+      "default": "Teaching English for Academic Purposes"
+    }
+  ]
+}
