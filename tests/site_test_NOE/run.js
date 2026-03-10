@@ -4,9 +4,6 @@ function log(msg) {
   process.stdout.write(`${msg}\n`);
 }
 
-const EMAIL = ${{ secrets.ANDREW_STRANGE_EMAIL }};
-const PASSWORD = ${{ secrets.ANDREW_STRANGE_PASSWORD }};
-
 module.exports = async function (driver, parameters = {}, zephyrLog) {
   if (typeof zephyrLog !== "function") zephyrLog = function () {};
 
@@ -29,7 +26,7 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
     // Step 2: Enter email and submit
     log("Step 2: Entering email address...");
     await usernameField.clear();
-    await usernameField.sendKeys(EMAIL);
+    await usernameField.sendKeys(${{ secrets.ANDREW_STRANGE_EMAIL }});
     await usernameField.sendKeys("\n");
 
     // Step 3: Verify email identifier appears on next page
@@ -70,7 +67,7 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
       throw new Error("FAIL: Password input field not found.");
     }
     await passwordField.clear();
-    await passwordField.sendKeys(PASSWORD);
+    await passwordField.sendKeys(${{ secrets.ANDREW_STRANGE_PASSWORD }});
     await passwordField.sendKeys("\n");
     log("PASS: Password entered and submitted.");
 
