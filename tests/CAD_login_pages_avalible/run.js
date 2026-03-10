@@ -133,31 +133,29 @@ async function waitForMFAApproval(driver) {
 }
 
 // ─── Helper: test a TST site ─────────────────────────────────────────────────
-async function testTstSite(driver, url, zephyrLog) {
+// Throws on failure so the retry wrapper can catch it.
+async function testTstSite(driver, url) {
+  await driver.get(url);
+  let labelText;
   try {
-    await driver.get(url);
     await driver.wait(
       until.elementLocated(By.css('label[for="logon"]')),
       10000
     );
     const label = await driver.findElement(By.css('label[for="logon"]'));
-    const labelText = await label.getText();
-
-    if (labelText.includes("User Id")) {
-      log(`PASS: User login visible on ${url}`);
-      zephyrLog(`${url} — User login label visible.`, "Pass");
-    } else {
-      log(`FAIL: Login label found but text was "${labelText}" on ${url}`);
-      zephyrLog(`${url} — Login label found but unexpected text: "${labelText}".`, "Fail");
-    }
+    labelText = await label.getText();
   } catch {
-    log(`FAIL: User Id login label not found on ${url}`);
-    zephyrLog(`${url} — User Id login label not found.`, "Fail");
+    throw new Error(`User Id login label not found on ${url}`);
+  }
+
+  if (!labelText.includes("User Id")) {
+    throw new Error(`Login label found but text was "${labelText}" on ${url}`);
   }
 }
 
 // ─── Helper: test a non-TST (production) site ────────────────────────────────
-async function testProdSite(driver, url, EMAIL, zephyrLog) {
+// Throws on failure so the retry wrapper can catch it.
+async function testProdSite(driver, url, EMAIL) {
   await driver.get(url);
 
   // Try at 10s then 20s to detect the Microsoft login redirect
@@ -178,9 +176,7 @@ async function testProdSite(driver, url, EMAIL, zephyrLog) {
         await emailInput.sendKeys(EMAIL);
         await emailInput.sendKeys("\n");
       } catch {
-        log(`FAIL: Could not locate or fill the Microsoft email input for ${url}`);
-        zephyrLog(`${url} — Microsoft login page loaded but email input not found.`, "Fail");
-        return;
+        throw new Error(`Microsoft login page loaded but email input not found for ${url}`);
       }
 
       // Wait for the "Invalid Application user" response page
@@ -194,28 +190,21 @@ async function testProdSite(driver, url, EMAIL, zephyrLog) {
         }
       }
 
-      if (invalidAppFound) {
-        log(`PASS: "Invalid Application user" page loaded for ${url}`);
-        zephyrLog(`${url} — Microsoft login completed and "Invalid Application user" confirmed.`, "Pass");
-      } else {
-        log(`FAIL: "Invalid Application user" not found after Microsoft login for ${url}`);
-        zephyrLog(`${url} — "Invalid Application user" page did not load after Microsoft login.`, "Fail");
+      if (!invalidAppFound) {
+        throw new Error(`"Invalid Application user" not found after Microsoft login for ${url}`);
       }
-      return; // Result determined — exit regardless
+      return; // PASS
     }
 
     // Also handle the unlikely case where "Invalid Application user" loads without MS login
     const src = await driver.getPageSource();
     if (src.includes("Invalid Application user")) {
-      log(`PASS: "Invalid Application user" page loaded for ${url}`);
-      zephyrLog(`${url} — "Invalid Application user" confirmed (no MS login redirect).`, "Pass");
-      return;
+      return; // PASS
     }
   }
 
   // Neither Microsoft login nor the expected page appeared within 20s
-  log(`FAIL: Microsoft login page did not load within 20s for ${url}`);
-  zephyrLog(`${url} — Microsoft login page not detected within 20s.`, "Fail");
+  throw new Error(`Microsoft login page not detected within 20s for ${url}`);
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
@@ -270,36 +259,67 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
   // ── Step 8: Test all 8 sites in individual tabs ────────────────────────────
   log("\n--- Step 8: Testing 8 sites ---");
   const mainWindow = await driver.getWindowHandle();
+  const SITE_RETRIES = 3; // 1 attempt + 2 retries
+  const siteFailures = [];
 
   for (let i = 0; i < SITES.length; i++) {
     const site = SITES[i];
     const stepLabel = `Step 8-${i + 1}`;
     log(`\n${stepLabel}: Testing ${site.url} (${site.isTst ? "TST" : "production"})`);
 
-    try {
-      // Open a new tab for each site
-      await driver.executeScript("window.open('');");
-      const handles = await driver.getAllWindowHandles();
-      await driver.switchTo().window(handles[handles.length - 1]);
+    let passed = false;
+    let lastError = null;
 
-      if (site.isTst) {
-        await testTstSite(driver, site.url, zephyrLog);
-      } else {
-        await testProdSite(driver, site.url, EMAIL, zephyrLog);
+    for (let attempt = 1; attempt <= SITE_RETRIES; attempt++) {
+      if (attempt > 1) {
+        log(`${stepLabel}: Retry ${attempt - 1}/2 for ${site.url}...`);
       }
-    } catch (siteErr) {
-      log(`FAIL: Unexpected error testing ${site.url}: ${siteErr.message}`);
-      zephyrLog(`${site.url} — Unexpected error: ${siteErr.message}`, "Fail");
-    } finally {
-      // Always close the tab and return to main window before the next site
+
+      let tabOpened = false;
       try {
-        await driver.close();
-      } catch { /* tab may already be closed */ }
-      try {
-        await driver.switchTo().window(mainWindow);
-      } catch { /* best effort */ }
+        await driver.executeScript("window.open('');");
+        tabOpened = true;
+        const handles = await driver.getAllWindowHandles();
+        await driver.switchTo().window(handles[handles.length - 1]);
+
+        if (site.isTst) {
+          await testTstSite(driver, site.url);
+        } else {
+          await testProdSite(driver, site.url, EMAIL);
+        }
+
+        // If we reach here, the test passed
+        log(`PASS: ${stepLabel} — ${site.url}`);
+        zephyrLog(`${site.url} — Login page verified successfully.`, "Pass");
+        passed = true;
+      } catch (err) {
+        lastError = err;
+        log(`FAIL (attempt ${attempt}/${SITE_RETRIES}): ${stepLabel} — ${err.message}`);
+      } finally {
+        if (tabOpened) {
+          try { await driver.close(); } catch { /* ignore */ }
+          try { await driver.switchTo().window(mainWindow); } catch { /* ignore */ }
+        }
+      }
+
+      if (passed) break;
+    }
+
+    if (!passed) {
+      const failMsg = `${stepLabel} FAILED after ${SITE_RETRIES} attempts — ${lastError && lastError.message}`;
+      log(`FAIL: ${failMsg}`);
+      zephyrLog(`${site.url} — ${failMsg}`, "Fail");
+      siteFailures.push(failMsg);
     }
   }
 
   log("\n--- All Step 8 site tests complete ---");
+
+  if (siteFailures.length > 0) {
+    const summary = `FAIL: ${siteFailures.length} site(s) failed:\n  ${siteFailures.join("\n  ")}`;
+    log(summary);
+    throw new Error(summary);
+  }
+
+  log("PASS: All 8 sites verified successfully.");
 };
