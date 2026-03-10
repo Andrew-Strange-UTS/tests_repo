@@ -7,6 +7,9 @@ function log(msg) {
 module.exports = async function (driver, parameters = {}, zephyrLog) {
   if (typeof zephyrLog !== "function") zephyrLog = function () {};
 
+  const EMAIL = parameters.ANDREW_STRANGE_EMAIL;
+  const PASSWORD = parameters.ANDREW_STRANGE_PASSWORD;
+
   try {
     // Step 1: Navigate to login page and verify username field
     log("Step 1: Navigating to https://login.uts.edu.au/");
@@ -26,7 +29,7 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
     // Step 2: Enter email and submit
     log("Step 2: Entering email address...");
     await usernameField.clear();
-    await usernameField.sendKeys(${{ secrets.ANDREW_STRANGE_EMAIL }});
+    await usernameField.sendKeys(EMAIL);
     await usernameField.sendKeys("\n");
 
     // Step 3: Verify email identifier appears on next page
@@ -67,7 +70,7 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
       throw new Error("FAIL: Password input field not found.");
     }
     await passwordField.clear();
-    await passwordField.sendKeys(${{ secrets.ANDREW_STRANGE_PASSWORD }});
+    await passwordField.sendKeys(PASSWORD);
     await passwordField.sendKeys("\n");
     log("PASS: Password entered and submitted.");
 
