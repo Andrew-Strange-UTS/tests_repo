@@ -4,8 +4,8 @@ function log(msg) {
   process.stdout.write(`${msg}\n`);
 }
 
-const EMAIL = "${{ secrets.ANDREW_STRANGE_EMAIL }}";
-const PASSWORD = "${{ secrets.ANDREW_STRANGE_PASSWORD }}";
+const EMAIL = ${{ secrets.ANDREW_STRANGE_EMAIL }};
+const PASSWORD = ${{ secrets.ANDREW_STRANGE_PASSWORD }};
 
 module.exports = async function (driver, parameters = {}, zephyrLog) {
   if (typeof zephyrLog !== "function") zephyrLog = function () {};
