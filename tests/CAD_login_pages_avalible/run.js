@@ -136,21 +136,23 @@ async function waitForMFAApproval(driver) {
 // Throws on failure so the retry wrapper can catch it.
 async function testTstSite(driver, url) {
   await driver.get(url);
-  let labelText;
   try {
+    // Wait for the logon input to be present (common to both label variants)
     await driver.wait(
-      until.elementLocated(By.css('label[for="logon"]')),
+      until.elementLocated(By.css('input[name="logon"]')),
       10000
     );
-    const label = await driver.findElement(By.css('label[for="logon"]'));
-    labelText = await label.getText();
   } catch {
-    throw new Error(`User Id login label not found on ${url}`);
+    throw new Error(`Logon input not found on ${url}`);
   }
 
-  if (!labelText.includes("User Id")) {
-    throw new Error(`Login label found but text was "${labelText}" on ${url}`);
+  // Accept either <label for="logon"> or a plain <label> — both sites use "User Id" text
+  const labels = await driver.findElements(By.css('label[for="logon"], .form-group label'));
+  for (const label of labels) {
+    const text = await label.getText();
+    if (text.includes("User Id")) return; // PASS
   }
+  throw new Error(`"User Id" label not found on ${url}`);
 }
 
 // ─── Helper: test a non-TST (production) site ────────────────────────────────
