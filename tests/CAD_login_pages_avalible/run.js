@@ -29,7 +29,7 @@ async function performLogin(driver, EMAIL, PASSWORD) {
       10000
     );
   } catch {
-    throw new Error("FAIL: Can't see username field on login.uts.edu.au");
+    throw new Error("Can't see username field on login.uts.edu.au");
   }
   log("PASS: Username field found.");
 
@@ -47,7 +47,7 @@ async function performLogin(driver, EMAIL, PASSWORD) {
       10000
     );
   } catch {
-    throw new Error("FAIL: Email identifier span not found after submitting username.");
+    throw new Error("Email identifier span not found after submitting username.");
   }
   log("PASS: Email identifier confirmed on page.");
 
@@ -61,7 +61,7 @@ async function performLogin(driver, EMAIL, PASSWORD) {
     const selectBtn = await passwordAuthDiv.findElement(By.css('a[data-se="button"]'));
     await selectBtn.click();
   } catch {
-    throw new Error("FAIL: Could not find or click the Password authenticator Select button.");
+    throw new Error("Could not find or click the Password authenticator Select button.");
   }
   log("PASS: Password authenticator selected.");
 
@@ -74,7 +74,7 @@ async function performLogin(driver, EMAIL, PASSWORD) {
       10000
     );
   } catch {
-    throw new Error("FAIL: Password input field not found.");
+    throw new Error("Password input field not found.");
   }
   await passwordField.clear();
   await passwordField.sendKeys(PASSWORD);
@@ -91,7 +91,7 @@ async function performLogin(driver, EMAIL, PASSWORD) {
     const pushSelectBtn = await pushAuthDiv.findElement(By.css('a[data-se="button"]'));
     await pushSelectBtn.click();
   } catch {
-    throw new Error("FAIL: Could not find or click the 'Get a push notification' Select button.");
+    throw new Error("Could not find or click the 'Get a push notification' Select button.");
   }
   log("PASS: 'Get a push notification' selected.");
 }
@@ -129,7 +129,7 @@ async function waitForMFAApproval(driver) {
     }
   }
 
-  throw new Error("FAIL: MFA approval timed out after 5 minutes.");
+  throw new Error("MFA approval timed out after 5 minutes.");
 }
 
 // ─── Helper: test a TST site ─────────────────────────────────────────────────
@@ -219,6 +219,7 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
   // ── Steps 1–7: Login + MFA, up to 3 attempts ──────────────────────────────
   const MAX_LOGIN_ATTEMPTS = 3;
   let loggedIn = false;
+  const loginAttemptErrors = [];
 
   for (let attempt = 1; attempt <= MAX_LOGIN_ATTEMPTS; attempt++) {
     log(`\n--- Login attempt ${attempt}/${MAX_LOGIN_ATTEMPTS} ---`);
@@ -231,31 +232,34 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
 
       if (approved) {
         loggedIn = true;
+        log(`PASS: Steps 1–7 — Login + MFA approved on attempt ${attempt}.`);
         zephyrLog(`Steps 1–7: Login + MFA approved on attempt ${attempt}.`, "Pass");
         break;
       } else {
-        // Session expired — loop back and retry (if attempts remain)
-        zephyrLog(`Steps 1–7: Session expired during MFA on attempt ${attempt}.`, "Fail");
-        if (attempt === MAX_LOGIN_ATTEMPTS) {
-          const msg = "FAIL: MFA session expired on all 3 attempts.";
-          zephyrLog(msg, "Fail");
-          throw new Error(msg);
+        // Session expired — record but don't fail yet
+        const msg = `Session expired during MFA on attempt ${attempt}.`;
+        log(`INFO: ${msg}`);
+        loginAttemptErrors.push(msg);
+        if (attempt < MAX_LOGIN_ATTEMPTS) {
+          log(`Retrying login (attempt ${attempt + 1})...`);
         }
-        log(`Retrying login (attempt ${attempt + 1})...`);
       }
     } catch (err) {
-      if (attempt === MAX_LOGIN_ATTEMPTS) {
-        zephyrLog("FAIL: " + (err && err.message), "Fail");
-        throw err;
+      // Record error but don't fail yet
+      const msg = `Attempt ${attempt} failed: ${err && err.message}`;
+      log(`INFO: ${msg}`);
+      loginAttemptErrors.push(msg);
+      if (attempt < MAX_LOGIN_ATTEMPTS) {
+        log(`Retrying login (attempt ${attempt + 1})...`);
       }
-      log(`Attempt ${attempt} failed: ${err.message}. Retrying...`);
     }
   }
 
   if (!loggedIn) {
-    const msg = "FAIL: Could not complete MFA login after 3 attempts.";
-    zephyrLog(msg, "Fail");
-    throw new Error(msg);
+    const summary = `FAIL: Could not complete MFA login after ${MAX_LOGIN_ATTEMPTS} attempts.\n  ${loginAttemptErrors.join("\n  ")}`;
+    log(summary);
+    zephyrLog(summary, "Fail");
+    throw new Error(summary);
   }
 
   // ── Step 8: Test all 8 sites in individual tabs ────────────────────────────
