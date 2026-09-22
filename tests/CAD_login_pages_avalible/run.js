@@ -17,21 +17,7 @@ const SITES = [
 ];
 
 // ─── Helper: run the Okta login flow (Steps 1–6) ────────────────────────────
-module.exports = async function (driver, parameters = {}) {
-  log(`Parameters received in google-secret-field: ${JSON.stringify(parameters)}`);
-  log(`Parameters received`);
-  const EMAIL = parameters.EMAIL || "";
-  const PASSWORD = parameters.PASSWORD || "";
-  
-  if (!EMAIL) {
-    log("❌ FAIL: No EMAIL secret provided in parameters");
-    throw new Error("Missing EMAIL secret in parameters");
-  }
-
-  if (!PASSWORD) {
-    log("❌ FAIL: No PASSWORD secret provided in parameters");
-    throw new Error("Missing PASSWORD secret in parameters");
-  }
+async function performLogin(driver, EMAIL, PASSWORD) {
   
   // Step 1
   log("Step 1: Navigating to https://login.uts.edu.au/");
@@ -230,6 +216,16 @@ module.exports = async function (driver, parameters = {}, zephyrLog) {
 
   const EMAIL    = parameters.ANDREW_STRANGE_EMAIL;
   const PASSWORD = parameters.ANDREW_STRANGE_PASSWORD;
+
+  if (!EMAIL) {
+    log("❌ FAIL: No ANDREW_STRANGE_EMAIL secret provided in parameters");
+    throw new Error("Missing ANDREW_STRANGE_EMAIL secret in parameters");
+  }
+
+  if (!PASSWORD) {
+    log("❌ FAIL: No ANDREW_STRANGE_PASSWORD secret provided in parameters");
+    throw new Error("Missing ANDREW_STRANGE_PASSWORD secret in parameters");
+  }
 
   // ── Steps 1–7: Login + MFA, up to 3 attempts ──────────────────────────────
   const MAX_LOGIN_ATTEMPTS = 3;
