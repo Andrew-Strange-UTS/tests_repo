@@ -17,7 +17,21 @@ const SITES = [
 ];
 
 // ─── Helper: run the Okta login flow (Steps 1–6) ────────────────────────────
-async function performLogin(driver, EMAIL, PASSWORD) {
+async function (driver, parameters = {}) {
+  log(`Parameters received`);
+  const EMAIL = parameters.EMAIL || "";
+  const PASSWORD = parameters.PASSWORD || "";
+  
+  if (!EMAIL) {
+    log("❌ FAIL: No EMAIL secret provided in parameters");
+    throw new Error("Missing EMAIL secret in parameters");
+  }
+
+  if (!PASSWORD) {
+    log("❌ FAIL: No PASSWORD secret provided in parameters");
+    throw new Error("Missing PASSWORD secret in parameters");
+  }
+  
   // Step 1
   log("Step 1: Navigating to https://login.uts.edu.au/");
   await driver.get("https://login.uts.edu.au/");
