@@ -18,6 +18,7 @@ const SITES = [
 
 // ─── Helper: run the Okta login flow (Steps 1–6) ────────────────────────────
 module.exports = async function (driver, parameters = {}) {
+  log(`Parameters received in google-secret-field: ${JSON.stringify(parameters)}`);
   log(`Parameters received`);
   const EMAIL = parameters.EMAIL || "";
   const PASSWORD = parameters.PASSWORD || "";
